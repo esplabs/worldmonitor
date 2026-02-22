@@ -13,7 +13,7 @@ HappyMonitor transforms the existing WorldMonitor codebase into an optimistic co
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Variant Shell & Visual Foundation** - Register happy variant, warm theme, basemap, typography, and positive color system
-- [ ] **Phase 2: Curated Content Pipeline** - Integrate positive news RSS feeds, GDELT tone filter, and content category definitions
+- [x] **Phase 2: Curated Content Pipeline** - Integrate positive news RSS feeds, GDELT tone filter, and content category definitions (completed 2026-02-22)
 - [ ] **Phase 3: Positive News Feed & Quality Pipeline** - First visible panel: scrolling positive news with category filtering, ML sentiment gate, and multi-stage quality pipeline
 - [ ] **Phase 4: Global Map & Positive Events** - Interactive map with geocoded positive events and live kindness layer
 - [ ] **Phase 5: Humanity Data Panels** - Live ticking counters and long-term progress charts showing humanity getting better
@@ -177,7 +177,7 @@ Note: Phases 4, 5, 6, 7 can partially parallelize after Phase 2 completes (they 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Variant Shell & Visual Foundation | 3/3 | Complete | 2026-02-22 |
-| 2. Curated Content Pipeline | 0/2 | Not started | - |
+| 2. Curated Content Pipeline | 0/2 | Complete    | 2026-02-22 |
 | 3. Positive News Feed & Quality Pipeline | 0/3 | Not started | - |
 | 4. Global Map & Positive Events | 0/2 | Not started | - |
 | 5. Humanity Data Panels | 0/3 | Not started | - |
