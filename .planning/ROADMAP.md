@@ -34,12 +34,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. The map displays a warm basemap style (green landmass, light ocean) instead of the dark satellite/military map
   4. All existing UI chrome (panel headers, status indicators, loading states, empty states) renders in the positive-semantic color system
   5. Typography is welcoming and readable, visually distinct from the default WorldMonitor variant
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
-- [ ] 01-03: TBD
+- [ ] 01-01-PLAN.md -- Variant registration, build scripts, metadata, favicons (INFRA-01, INFRA-02, INFRA-03)
+- [ ] 01-02-PLAN.md -- Warm CSS theme, typography, semantic colors (THEME-01, THEME-03, THEME-04)
+- [ ] 01-03-PLAN.md -- Map basemap styles, panel chrome, UI polish + visual verification (THEME-02, THEME-05)
 
 ### Phase 2: Curated Content Pipeline
 **Goal**: The happy variant has a steady stream of positive news content flowing in from dedicated curated sources and GDELT positive tone filtering
