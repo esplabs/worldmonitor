@@ -176,7 +176,7 @@ We label every PR with the LLM that produced it (e.g., `claude`, `codex`, `curso
 - **LLM adoption trends** — over time, label frequency shows which tools developers gravitate toward, which is a useful signal for which LLMs offer the best developer experience
 - **Code quality evaluation** — labels let us retrospectively assess the quality of code produced by different LLMs, helping us (and the community) make informed tooling choices
 
-If your PR was written with AI assistance, apply the appropriate label when opening it. See [past labeled PRs](https://github.com/koala73/worldmonitor/pulls?q=is%3Apr+label%3Aclaude%2Ccodex%2Ccursor) for examples.
+If your PR was written with AI assistance, apply the appropriate label when opening it.
 
 ### Quality Bar
 
