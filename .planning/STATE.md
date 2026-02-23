@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Every piece of content on the dashboard makes the viewer feel genuinely better about humanity
-**Current focus:** Phase 8 in progress - Map Data Overlays (1/2 plans done)
+**Current focus:** Phase 8 COMPLETE - Map Data Overlays (2/2 plans done)
 
 ## Current Position
 
-Phase: 8 of 9 (Map Data Overlays)
-Plan: 1 of 2 in current phase (08-01 complete)
-Status: In Progress
-Last activity: 2026-02-23 -- Completed 08-01-PLAN.md (Data Foundation)
+Phase: 8 of 9 (Map Data Overlays) -- COMPLETE
+Plan: 2 of 2 in current phase (08-02 complete)
+Status: Phase Complete
+Last activity: 2026-02-23 -- Completed 08-02-PLAN.md (Overlay Layers)
 
-Progress: [#########-] 92%
+Progress: [##########] 96%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 21
+- Total plans completed: 22
 - Average duration: 10 min
-- Total execution time: 3.2 hours
+- Total execution time: 3.4 hours
 
 **By Phase:**
 
@@ -35,9 +35,11 @@ Progress: [#########-] 92%
 | 06 | 3 | 8 min | 2.7 min |
 | 07 | 3 | 8 min | 2.7 min |
 
+| 08 | 2 | 18 min | 9 min |
+
 **Recent Trend:**
-- Last 5 plans: 2m, 4m, 2m, 3m, 3m
-- Trend: Phase 7 complete -- all 3 plans done
+- Last 5 plans: 3m, 3m, 3m, 6m, 12m
+- Trend: Phase 8 complete -- all 2 plans done
 
 *Updated after each plan completion*
 | Phase 04 P01 | 4 | 2 tasks | 9 files |
@@ -53,6 +55,7 @@ Progress: [#########-] 92%
 | Phase 07 P02 | 2 | 2 tasks | 2 files |
 | Phase 07 P03 | 3 | 2 tasks | 3 files |
 | Phase 08 P01 | 6 | 2 tasks | 15 files |
+| Phase 08 P02 | 12 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -128,6 +131,10 @@ Recent decisions affecting current work:
 - [08-01]: Happiness layer enabled by default in happy variant; speciesRecovery and renewableInstallations off to avoid visual clutter.
 - [08-01]: 152 WHR 2025 country scores curated with verified ISO-2 mappings for known naming mismatches (Turkiye, Czechia, Congo variants).
 - [08-01]: 92 renewable installations curated at utility-scale only (>100MW solar/wind, >500MW hydro) for meaningful map density.
+- [08-02]: Used shapes.square for choropleth legend (shapes.rect doesn't exist in legend shapes object).
+- [08-02]: Choropleth layer pushed after kindness layer in buildLayers() so point markers render on top of area fill.
+- [08-02]: Species recovery zones reuse existing loadSpeciesData() call rather than duplicate fetch.
+- [08-02]: Happiness and renewable map data loaded as separate tasks in refreshAll() for independent error handling.
 
 ### Pending Todos
 
@@ -142,5 +149,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 08-01-PLAN.md (Data Foundation) -- Phase 8 plan 1/2
-Resume file: .planning/phases/08-map-data-overlays/08-01-SUMMARY.md
+Stopped at: Completed 08-02-PLAN.md (Overlay Layers) -- Phase 8 COMPLETE (2/2)
+Resume file: .planning/phases/08-map-data-overlays/08-02-SUMMARY.md
