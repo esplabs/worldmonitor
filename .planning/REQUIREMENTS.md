@@ -86,8 +86,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Live Kindness Map
 
-- [ ] **KIND-01**: Animated map layer showing acts of kindness, donations, volunteer events geolocated worldwide with green pulses
-- [ ] **KIND-02**: Hybrid data approach: estimated baseline pulses weighted by population density, overlaid with real events from GoFundMe trending, Change.org wins, etc.
+- [x] **KIND-01**: Animated map layer showing acts of kindness, donations, volunteer events geolocated worldwide with green pulses
+- [x] **KIND-02**: Hybrid data approach: estimated baseline pulses weighted by population density, overlaid with real events from GoFundMe trending, Change.org wins, etc.
 
 ### Shareable Story Cards
 
@@ -173,8 +173,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ENERGY-01 | Phase 7 | Pending |
 | ENERGY-02 | Phase 7 | Pending |
 | ENERGY-03 | Phase 7 | Pending |
-| KIND-01 | Phase 4 | Pending |
-| KIND-02 | Phase 4 | Pending |
+| KIND-01 | Phase 4 | Complete |
+| KIND-02 | Phase 4 | Complete |
 | SHARE-01 | Phase 9 | Pending |
 | SHARE-02 | Phase 9 | Pending |
 | SHARE-03 | Phase 9 | Pending |
