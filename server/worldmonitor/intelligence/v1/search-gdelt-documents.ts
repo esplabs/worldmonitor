@@ -20,6 +20,8 @@ const GDELT_MAX_RECORDS = 20;
 const GDELT_DEFAULT_RECORDS = 10;
 const GDELT_DOC_API = 'https://api.gdeltproject.org/api/v2/doc/doc';
 
+declare const process: { env: Record<string, string | undefined> };
+
 // ========================================================================
 // RPC handler
 // ========================================================================
@@ -44,17 +46,24 @@ export async function searchGdeltDocuments(
     const cached = (await getCachedJson(cacheKey)) as SearchGdeltDocumentsResponse | null;
     if (cached?.articles?.length) return cached;
 
-    const gdeltUrl = new URL(GDELT_DOC_API);
-    gdeltUrl.searchParams.set('query', query);
-    gdeltUrl.searchParams.set('mode', 'artlist');
-    gdeltUrl.searchParams.set('maxrecords', maxRecords.toString());
-    gdeltUrl.searchParams.set('format', 'json');
-    gdeltUrl.searchParams.set('sort', 'date');
-    gdeltUrl.searchParams.set('timespan', timespan);
+    const params = new URLSearchParams({
+      query,
+      mode: 'artlist',
+      maxrecords: maxRecords.toString(),
+      format: 'json',
+      sort: 'date',
+      timespan,
+    });
 
-    const response = await fetch(gdeltUrl.toString(), {
+    // Route through relay if configured (GDELT is unreachable from some ISPs)
+    const relayUrl = process.env.WS_RELAY_URL;
+    const fetchUrl = relayUrl
+      ? `${relayUrl}/gdelt?${params}`
+      : `${GDELT_DOC_API}?${params}`;
+
+    const response = await fetch(fetchUrl, {
       headers: { 'User-Agent': CHROME_UA },
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+      signal: AbortSignal.timeout(relayUrl ? 30_000 : UPSTREAM_TIMEOUT_MS),
     });
 
     if (!response.ok) {

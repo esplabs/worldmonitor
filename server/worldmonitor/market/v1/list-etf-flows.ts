@@ -11,6 +11,8 @@ import type {
 } from '../../../../src/generated/server/worldmonitor/market/v1/service_server';
 import { UPSTREAM_TIMEOUT_MS, type YahooChartResponse } from './_shared';
 import { CHROME_UA, yahooGate } from '../../../_shared/constants';
+
+declare const process: { env: Record<string, string | undefined> };
 import { getCachedJson, setCachedJson } from '../../../_shared/redis';
 
 // ========================================================================
@@ -43,13 +45,17 @@ const ETF_CACHE_TTL = 900_000; // 15 minutes (in-memory fallback)
 
 async function fetchEtfChart(ticker: string): Promise<YahooChartResponse | null> {
   try {
-    await yahooGate();
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=5d&interval=1d`;
+    const relayUrl = process.env.WS_RELAY_URL;
+    const url = relayUrl
+      ? `${relayUrl}/yahoo-chart?symbol=${encodeURIComponent(ticker)}&range=5d&interval=1d`
+      : `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=5d&interval=1d`;
+
+    if (!relayUrl) await yahooGate();
     const resp = await fetch(url, {
       headers: {
         'User-Agent': CHROME_UA,
       },
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+      signal: AbortSignal.timeout(relayUrl ? 20_000 : UPSTREAM_TIMEOUT_MS),
     });
     if (!resp.ok) return null;
     return (await resp.json()) as YahooChartResponse;

@@ -126,13 +126,18 @@ export async function fetchYahooQuote(
   symbol: string,
 ): Promise<{ price: number; change: number; sparkline: number[] } | null> {
   try {
-    await yahooGate();
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`;
+    // Route through relay if configured (Yahoo blocks/rate-limits NZ IPs)
+    const relayUrl = process.env.WS_RELAY_URL;
+    const url = relayUrl
+      ? `${relayUrl}/yahoo-chart?symbol=${encodeURIComponent(symbol)}`
+      : `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`;
+
+    if (!relayUrl) await yahooGate();
     const resp = await fetch(url, {
       headers: {
         'User-Agent': CHROME_UA,
       },
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+      signal: AbortSignal.timeout(relayUrl ? 20_000 : UPSTREAM_TIMEOUT_MS),
     });
     if (!resp.ok) return null;
 

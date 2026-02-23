@@ -3917,6 +3917,7 @@ export class App {
         }
         if (!result.success) {
           dataFreshness.recordError('ucdp_events', 'UCDP events unavailable (retaining prior event state)');
+          (this.panels['ucdp-events'] as UcdpEventsPanel)?.setEvents([]);
           return;
         }
         const acledEvents = protestEvents.map(e => ({
@@ -3931,6 +3932,7 @@ export class App {
       } catch (error) {
         console.error('[Intelligence] UCDP events fetch failed:', error);
         dataFreshness.recordError('ucdp_events', String(error));
+        (this.panels['ucdp-events'] as UcdpEventsPanel)?.setEvents([]);
       }
     })());
 

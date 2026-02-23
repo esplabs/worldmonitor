@@ -16,6 +16,8 @@ import type {
 import { getCachedJson, setCachedJson } from '../../../_shared/redis';
 import { CHROME_UA } from '../../../_shared/constants';
 
+declare const process: { env: Record<string, string | undefined> };
+
 const UCDP_PAGE_SIZE = 1000;
 const MAX_PAGES = 12;
 const TRAILING_WINDOW_MS = 365 * 24 * 60 * 60 * 1000;
@@ -82,6 +84,53 @@ async function fetchGedPage(version: string, page: number): Promise<any> {
   return response.json();
 }
 
+const RELAY_VIOLENCE_TYPE_MAP: Record<string, UcdpViolenceType> = {
+  'state-based': 'UCDP_VIOLENCE_TYPE_STATE_BASED',
+  'non-state': 'UCDP_VIOLENCE_TYPE_NON_STATE',
+  'one-sided': 'UCDP_VIOLENCE_TYPE_ONE_SIDED',
+};
+
+/** Fetch pre-aggregated UCDP events from the Railway relay */
+async function fetchUcdpViaRelay(relayUrl: string, req: ListUcdpEventsRequest): Promise<UcdpViolenceEvent[]> {
+  const response = await fetch(`${relayUrl}/ucdp-events`, {
+    headers: { Accept: 'application/json' },
+    signal: AbortSignal.timeout(45000),
+  });
+  if (!response.ok) throw new Error(`Relay UCDP: ${response.status}`);
+
+  const result = (await response.json()) as {
+    success: boolean;
+    data: Array<{
+      id: string; date_start: string; date_end: string;
+      latitude: number; longitude: number; country: string;
+      side_a: string; side_b: string;
+      deaths_best: number; deaths_low: number; deaths_high: number;
+      type_of_violence: string; source_original: string;
+    }>;
+  };
+
+  if (!result.success || !Array.isArray(result.data)) return [];
+
+  let mapped = result.data.map((e): UcdpViolenceEvent => ({
+    id: e.id,
+    dateStart: Date.parse(e.date_start) || 0,
+    dateEnd: Date.parse(e.date_end) || 0,
+    location: { latitude: e.latitude, longitude: e.longitude },
+    country: e.country,
+    sideA: e.side_a,
+    sideB: e.side_b,
+    deathsBest: e.deaths_best,
+    deathsLow: e.deaths_low,
+    deathsHigh: e.deaths_high,
+    violenceType: RELAY_VIOLENCE_TYPE_MAP[e.type_of_violence] || 'UCDP_VIOLENCE_TYPE_UNSPECIFIED',
+    sourceOriginal: e.source_original,
+  }));
+
+  if (req.country) mapped = mapped.filter((e) => e.country === req.country);
+  mapped.sort((a, b) => b.dateStart - a.dateStart);
+  return mapped;
+}
+
 async function discoverGedVersion(): Promise<{ version: string; page0: any }> {
   // Use cached version if still valid
   if (discoveredVersion && (Date.now() - discoveredVersionTimestamp) < VERSION_CACHE_MS) {
@@ -114,6 +163,17 @@ async function discoverGedVersion(): Promise<{ version: string; page0: any }> {
 }
 
 async function fetchUcdpGedEvents(req: ListUcdpEventsRequest): Promise<UcdpViolenceEvent[]> {
+  // Route through relay if configured (UCDP in Sweden is slow/unreachable from NZ)
+  const relayUrl = process.env.WS_RELAY_URL;
+  if (relayUrl) {
+    const events = await fetchUcdpViaRelay(relayUrl, req);
+    if (events.length > 0) {
+      await setCachedJson(CACHE_KEY, events, CACHE_TTL_FULL).catch(() => {});
+      fallbackCache = { data: events, timestamp: Date.now(), ttlMs: CACHE_TTL_FULL * 1000 };
+    }
+    return events;
+  }
+
   // Negative cache: skip fetch if UCDP failed recently
   if (lastFailureTimestamp && (Date.now() - lastFailureTimestamp) < NEGATIVE_CACHE_MS) {
     if (fallbackCache.data) return fallbackCache.data;

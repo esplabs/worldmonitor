@@ -1,10 +1,20 @@
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { resolve, dirname, extname } from 'path';
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import { brotliCompress } from 'zlib';
 import { promisify } from 'util';
 import pkg from './package.json';
+
+// Seed process.env with ALL .env.local vars (not just VITE_*) so that
+// server-side handlers in sebufApiPlugin can read API keys like
+// FINNHUB_API_KEY, NASA_FIRMS_API_KEY, FRED_API_KEY, etc.
+const allEnv = loadEnv('development', process.cwd(), '');
+for (const [key, value] of Object.entries(allEnv)) {
+  if (!(key in process.env)) {
+    process.env[key] = value;
+  }
+}
 
 const isE2E = process.env.VITE_E2E === '1';
 
@@ -197,6 +207,127 @@ function polymarketPlugin(): Plugin {
           // Expected: Cloudflare JA3 blocks server-side TLS — return empty array
           res.setHeader('Cache-Control', 'public, max-age=300');
           res.end('[]');
+        }
+      });
+    },
+  };
+}
+
+/**
+ * Vite dev server plugin that replicates the Vercel /api/rss-proxy edge
+ * function locally. Without this, all news feeds show "UNAVAILABLE" because
+ * the feeds.ts helper builds `/api/rss-proxy?url=...` URLs that only exist
+ * as a Vercel function in production.
+ */
+function rssProxyPlugin(): Plugin {
+  // Re-use the same allowed domains list from api/rss-proxy.js
+  const ALLOWED_DOMAINS = new Set([
+    'feeds.bbci.co.uk','www.theguardian.com','feeds.npr.org','news.google.com',
+    'www.aljazeera.com','rss.cnn.com','hnrss.org','feeds.arstechnica.com',
+    'www.theverge.com','www.cnbc.com','feeds.marketwatch.com','www.defenseone.com',
+    'breakingdefense.com','www.bellingcat.com','techcrunch.com','huggingface.co',
+    'www.technologyreview.com','rss.arxiv.org','export.arxiv.org',
+    'www.federalreserve.gov','www.sec.gov','www.whitehouse.gov','www.state.gov',
+    'www.defense.gov','home.treasury.gov','www.justice.gov','tools.cdc.gov',
+    'www.fema.gov','www.dhs.gov','www.thedrive.com','krebsonsecurity.com',
+    'finance.yahoo.com','thediplomat.com','venturebeat.com','foreignpolicy.com',
+    'www.ft.com','openai.com','www.reutersagency.com','feeds.reuters.com',
+    'rsshub.app','asia.nikkei.com','www.cfr.org','www.csis.org','www.politico.com',
+    'www.brookings.edu','layoffs.fyi','www.defensenews.com','www.militarytimes.com',
+    'taskandpurpose.com','news.usni.org','www.oryxspioenkop.com','www.gov.uk',
+    'www.foreignaffairs.com','www.atlanticcouncil.org',
+    'www.zdnet.com','www.techmeme.com','www.darkreading.com','www.schneier.com',
+    'rss.politico.com','www.anandtech.com','www.tomshardware.com',
+    'www.semianalysis.com','feed.infoq.com','thenewstack.io','devops.com','dev.to',
+    'lobste.rs','changelog.com','seekingalpha.com','news.crunchbase.com',
+    'www.saastr.com','feeds.feedburner.com','www.producthunt.com','www.axios.com',
+    'github.blog','githubnext.com','mshibanami.github.io','www.engadget.com',
+    'news.mit.edu','dev.events','www.ycombinator.com','a16z.com',
+    'review.firstround.com','www.sequoiacap.com','www.nfx.com','www.aaronsw.com',
+    'bothsidesofthetable.com','www.lennysnewsletter.com','stratechery.com',
+    'www.eu-startups.com','tech.eu','sifted.eu','www.techinasia.com','kr-asia.com',
+    'techcabal.com','disrupt-africa.com','lavca.org','contxto.com','inc42.com',
+    'yourstory.com','pitchbook.com','www.cbinsights.com','www.techstars.com',
+    'english.alarabiya.net','www.arabnews.com','www.timesofisrael.com',
+    'www.haaretz.com','www.scmp.com','kyivindependent.com','www.themoscowtimes.com',
+    'feeds.24.com','feeds.capi24.com','www.france24.com','www.euronews.com',
+    'www.lemonde.fr','rss.dw.com','www.africanews.com','www.lasillavacia.com',
+    'www.channelnewsasia.com','www.thehindu.com','news.un.org','www.iaea.org',
+    'www.who.int','www.cisa.gov','www.crisisgroup.org','rusi.org',
+    'warontherocks.com','www.aei.org','responsiblestatecraft.org','www.fpri.org',
+    'jamestown.org','www.chathamhouse.org','ecfr.eu','www.gmfus.org',
+    'www.wilsoncenter.org','www.lowyinstitute.org','www.mei.edu','www.stimson.org',
+    'www.cnas.org','carnegieendowment.org','www.rand.org','fas.org',
+    'www.armscontrol.org','www.nti.org','thebulletin.org','www.iss.europa.eu',
+    'www.fao.org','worldbank.org','www.imf.org',
+    'www.hurriyet.com.tr','tvn24.pl','www.polsatnews.pl','www.rp.pl','meduza.io',
+    'novayagazeta.eu','www.bangkokpost.com','vnexpress.net','www.abc.net.au',
+    'www.brasilparalelo.com.br','news.ycombinator.com',
+    'www.coindesk.com','cointelegraph.com',
+    'fr.euronews.com','de.euronews.com','it.euronews.com','es.euronews.com',
+    'pt.euronews.com','ru.euronews.com',
+    'feeds.elpais.com','e00-elmundo.uecdn.es','www.bbc.com',
+    'www.tagesschau.de','www.spiegel.de','newsfeed.zeit.de',
+    'www.ansa.it','xml2.corriereobjects.it',
+  ]);
+
+  return {
+    name: 'rss-proxy-dev',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url?.startsWith('/api/rss-proxy')) return next();
+
+        const url = new URL(req.url, 'http://localhost');
+        const feedUrl = url.searchParams.get('url');
+
+        if (!feedUrl) {
+          res.statusCode = 400;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Missing url parameter' }));
+          return;
+        }
+
+        try {
+          const parsed = new URL(feedUrl);
+          if (!ALLOWED_DOMAINS.has(parsed.hostname)) {
+            res.statusCode = 403;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: `Domain not allowed: ${parsed.hostname}` }));
+            return;
+          }
+
+          const isGoogleNews = feedUrl.includes('news.google.com');
+          const timeout = isGoogleNews ? 20000 : 12000;
+
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), timeout);
+
+          const response = await fetch(feedUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+              'Accept-Language': 'en-US,en;q=0.9',
+            },
+            redirect: 'follow',
+            signal: controller.signal,
+          });
+          clearTimeout(timer);
+
+          const data = await response.text();
+          res.statusCode = response.status;
+          res.setHeader('Content-Type', 'application/xml');
+          res.setHeader('Cache-Control', 'public, max-age=600');
+          res.end(data);
+        } catch (error: any) {
+          const isTimeout = error.name === 'AbortError';
+          console.error('[rss-proxy-dev]', feedUrl, error.message);
+          res.statusCode = isTimeout ? 504 : 502;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            error: isTimeout ? 'Feed timeout' : 'Failed to fetch feed',
+            details: error.message,
+            url: feedUrl,
+          }));
         }
       });
     },
@@ -483,6 +614,7 @@ export default defineConfig({
   },
   plugins: [
     htmlVariantPlugin(),
+    rssProxyPlugin(),
     polymarketPlugin(),
     youtubeLivePlugin(),
     sebufApiPlugin(),

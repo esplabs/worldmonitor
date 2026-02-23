@@ -19,9 +19,9 @@ const API_KEY = process.env.AISSTREAM_API_KEY || process.env.VITE_AISSTREAM_API_
 const PORT = process.env.PORT || 3004;
 
 if (!API_KEY) {
-  console.error('[Relay] Error: AISSTREAM_API_KEY environment variable not set');
-  console.error('[Relay] Get a free key at https://aisstream.io');
-  process.exit(1);
+  console.warn('[Relay] Warning: AISSTREAM_API_KEY not set — AIS vessel streaming disabled');
+  console.warn('[Relay] HTTP proxy endpoints (GDELT, UCDP, Yahoo, OpenSky, RSS) still available');
+  console.warn('[Relay] Get a free key at https://aisstream.io to enable AIS streaming');
 }
 
 const MAX_WS_CLIENTS = 10; // Cap WS clients — app uses HTTP snapshots, not WS
@@ -566,7 +566,7 @@ setInterval(() => {
 const UCDP_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 const UCDP_PAGE_SIZE = 1000;
 const UCDP_MAX_PAGES = 12;
-const UCDP_FETCH_TIMEOUT = 30000; // 30s per page (no Railway limit)
+const UCDP_FETCH_TIMEOUT = 60000; // 60s per page — UCDP API in Sweden is very slow
 const UCDP_TRAILING_WINDOW_MS = 365 * 24 * 60 * 60 * 1000;
 
 let ucdpCache = { data: null, timestamp: 0 };
@@ -602,7 +602,7 @@ async function ucdpFetchPage(version, page) {
   const url = `https://ucdpapi.pcr.uu.se/api/gedevents/${version}?pagesize=${UCDP_PAGE_SIZE}&page=${page}`;
 
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers: { Accept: 'application/json' }, timeout: UCDP_FETCH_TIMEOUT }, (res) => {
+    const req = https.get(url, { headers: { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }, timeout: UCDP_FETCH_TIMEOUT }, (res) => {
       if (res.statusCode !== 200) {
         res.resume();
         return reject(new Error(`UCDP API ${res.statusCode} (v${version} p${page})`));
@@ -625,7 +625,7 @@ async function ucdpDiscoverVersion() {
     try {
       const page0 = await ucdpFetchPage(version, 0);
       if (Array.isArray(page0?.Result)) return { version, page0 };
-    } catch { /* next candidate */ }
+    } catch (err) { console.error(`[UCDP] Version ${version} failed:`, err.message); }
   }
   throw new Error('No valid UCDP GED version found');
 }
@@ -1255,6 +1255,155 @@ function handlePolymarketRequest(req, res) {
   });
 }
 
+// ── GDELT proxy (api.gdeltproject.org unreachable from some ISPs) ──
+const gdeltCache = new Map(); // key: query params → { data, timestamp }
+const gdeltInFlight = new Map();
+const GDELT_CACHE_TTL_MS = 10 * 60 * 1000; // 10 min
+
+function handleGdeltRequest(req, res) {
+  const url = new URL(req.url, `http://localhost:${PORT}`);
+  const query = url.searchParams.get('query') || '';
+  const maxrecords = Math.min(Math.max(1, parseInt(url.searchParams.get('maxrecords') || '10', 10) || 10), 20);
+  const timespan = url.searchParams.get('timespan') || '72h';
+
+  if (!query || query.length < 2) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ articles: [], error: 'Query required (min 2 chars)' }));
+  }
+
+  const cacheKey = `${query}:${maxrecords}:${timespan}`;
+  const cached = gdeltCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < GDELT_CACHE_TTL_MS) {
+    return sendCompressed(req, res, 200, {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=600',
+      'X-Cache': 'HIT',
+    }, cached.data);
+  }
+
+  // Deduplicate in-flight requests
+  if (gdeltInFlight.has(cacheKey)) {
+    gdeltInFlight.get(cacheKey).then(data => {
+      sendCompressed(req, res, 200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=600',
+        'X-Cache': 'HIT-INFLIGHT',
+      }, data);
+    }).catch(() => {
+      if (cached) return sendCompressed(req, res, 200, { 'Content-Type': 'application/json', 'X-Cache': 'STALE' }, cached.data);
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ articles: [], error: 'GDELT fetch failed' }));
+    });
+    return;
+  }
+
+  const params = new URLSearchParams({ query, mode: 'artlist', maxrecords: String(maxrecords), format: 'json', sort: 'date', timespan });
+  const gdeltUrl = `https://api.gdeltproject.org/api/v2/doc/doc?${params}`;
+
+  const fetchPromise = new Promise((resolve, reject) => {
+    const request = https.get(gdeltUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }, timeout: 30000 }, (response) => {
+      if (response.statusCode !== 200) {
+        reject(new Error(`GDELT ${response.statusCode}`));
+        response.resume();
+        return;
+      }
+      let data = '';
+      response.on('data', chunk => data += chunk);
+      response.on('end', () => resolve(data));
+    });
+    request.on('error', reject);
+    request.on('timeout', () => { request.destroy(); reject(new Error('timeout')); });
+  });
+
+  gdeltInFlight.set(cacheKey, fetchPromise);
+  fetchPromise
+    .then(data => {
+      gdeltCache.set(cacheKey, { data, timestamp: Date.now() });
+      sendCompressed(req, res, 200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=600',
+        'X-Cache': 'MISS',
+      }, data);
+    })
+    .catch(err => {
+      console.error('[GDELT] Fetch error:', err.message);
+      if (cached) return sendCompressed(req, res, 200, { 'Content-Type': 'application/json', 'X-Cache': 'STALE' }, cached.data);
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ articles: [], error: err.message }));
+    })
+    .finally(() => gdeltInFlight.delete(cacheKey));
+}
+
+// ── Yahoo Finance proxy (rate-limited/blocked from cloud + NZ IPs) ──
+const yahooCache = new Map(); // key: symbol → { data, timestamp }
+const YAHOO_CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
+
+function handleYahooChartRequest(req, res) {
+  const url = new URL(req.url, `http://localhost:${PORT}`);
+  const symbol = url.searchParams.get('symbol') || '';
+
+  if (!symbol) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ error: 'symbol required' }));
+  }
+
+  // Pass through optional Yahoo chart params (range, interval, etc.)
+  const yahooParams = new URLSearchParams();
+  for (const [key, value] of url.searchParams) {
+    if (key !== 'symbol') yahooParams.set(key, value);
+  }
+  const paramStr = yahooParams.toString();
+  const cacheKey = `${symbol}:${paramStr}`;
+
+  const cached = yahooCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < YAHOO_CACHE_TTL_MS) {
+    return sendCompressed(req, res, 200, {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=300',
+      'X-Cache': 'HIT',
+    }, cached.data);
+  }
+
+  const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}${paramStr ? '?' + paramStr : ''}`;
+  const request = https.get(yahooUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'application/json',
+    },
+    timeout: 15000,
+  }, (response) => {
+    if (response.statusCode !== 200) {
+      console.error(`[Yahoo] ${symbol}: upstream ${response.statusCode}`);
+      response.resume();
+      if (cached) return sendCompressed(req, res, 200, { 'Content-Type': 'application/json', 'X-Cache': 'STALE' }, cached.data);
+      res.writeHead(response.statusCode, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ chart: { error: { code: 'UpstreamError' } } }));
+    }
+    let data = '';
+    response.on('data', chunk => data += chunk);
+    response.on('end', () => {
+      yahooCache.set(cacheKey, { data, timestamp: Date.now() });
+      sendCompressed(req, res, 200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=300',
+        'X-Cache': 'MISS',
+      }, data);
+    });
+  });
+  request.on('error', (err) => {
+    console.error(`[Yahoo] ${symbol}: error`, err.message);
+    if (cached) return sendCompressed(req, res, 200, { 'Content-Type': 'application/json', 'X-Cache': 'STALE' }, cached.data);
+    res.writeHead(502, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ chart: { error: { code: 'FetchError', description: err.message } } }));
+  });
+  request.on('timeout', () => {
+    request.destroy();
+    if (cached) return sendCompressed(req, res, 200, { 'Content-Type': 'application/json', 'X-Cache': 'STALE' }, cached.data);
+    res.writeHead(504, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ chart: { error: { code: 'Timeout' } } }));
+  });
+}
+
 // Periodic cache cleanup to prevent memory leaks
 setInterval(() => {
   const now = Date.now();
@@ -1271,6 +1420,12 @@ setInterval(() => {
   }
   for (const [key, entry] of polymarketCache) {
     if (now - entry.timestamp > POLYMARKET_CACHE_TTL_MS * 2) polymarketCache.delete(key);
+  }
+  for (const [key, entry] of gdeltCache) {
+    if (now - entry.timestamp > GDELT_CACHE_TTL_MS * 2) gdeltCache.delete(key);
+  }
+  for (const [key, entry] of yahooCache) {
+    if (now - entry.timestamp > YAHOO_CACHE_TTL_MS * 2) yahooCache.delete(key);
   }
 }, 60 * 1000);
 
@@ -1608,6 +1763,10 @@ const server = http.createServer(async (req, res) => {
     }
   } else if (req.url.startsWith('/ucdp-events')) {
     handleUcdpEventsRequest(req, res);
+  } else if (req.url.startsWith('/gdelt')) {
+    handleGdeltRequest(req, res);
+  } else if (req.url.startsWith('/yahoo-chart')) {
+    handleYahooChartRequest(req, res);
   } else if (req.url.startsWith('/opensky')) {
     handleOpenSkyRequest(req, res, PORT);
   } else if (req.url.startsWith('/worldbank')) {
@@ -1621,6 +1780,8 @@ const server = http.createServer(async (req, res) => {
 });
 
 function connectUpstream() {
+  // Skip if no API key configured
+  if (!API_KEY) return;
   // Skip if already connected or connecting
   if (upstreamSocket?.readyState === WebSocket.OPEN ||
       upstreamSocket?.readyState === WebSocket.CONNECTING) return;
@@ -1725,7 +1886,7 @@ server.listen(PORT, () => {
   console.log(`[Relay] WebSocket relay on port ${PORT}`);
 });
 
-wss.on('connection', (ws, req) => {
+wss.on('connection', (ws, _req) => {
   if (clients.size >= MAX_WS_CLIENTS) {
     console.log(`[Relay] WS client rejected (max ${MAX_WS_CLIENTS})`);
     ws.close(1013, 'Max clients reached');
