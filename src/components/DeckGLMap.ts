@@ -2344,54 +2344,111 @@ export class DeckGLMap {
 
   private createPositiveEventsLayers(): Layer[] {
     const zoom = this.maplibreMap?.getZoom() || 2;
-    const zoomScale = Math.min(1, (zoom - 1) / 3);
-    const maxPx = 6 + Math.round(8 * zoomScale);
     const layers: Layer[] = [];
 
-    // Color mapping by category
+    // Category → emoji + color
+    const getCategoryEmoji = (category: string): string => {
+      switch (category) {
+        case 'science-health': return '\u{1F52C}'; // 🔬
+        case 'nature-wildlife': return '\u{1F33F}'; // 🌿
+        case 'innovation-tech': return '\u{1F4A1}'; // 💡
+        case 'humanity-kindness': return '\u{1F49A}'; // 💚
+        case 'climate-wins': return '\u{1F331}'; // 🌱
+        case 'culture-community': return '\u{1F3AD}'; // 🎭
+        default: return '\u{2728}'; // ✨
+      }
+    };
+
     const getCategoryColor = (category: string): [number, number, number, number] => {
       switch (category) {
         case 'nature-wildlife':
         case 'humanity-kindness':
-          return [34, 197, 94, 180]; // green
+          return [34, 197, 94, 200]; // green
         case 'science-health':
         case 'innovation-tech':
         case 'climate-wins':
-          return [234, 179, 8, 180]; // gold
+          return [234, 179, 8, 200]; // gold
         case 'culture-community':
-          return [139, 92, 246, 180]; // purple
+          return [139, 92, 246, 200]; // purple
         default:
-          return [34, 197, 94, 180]; // green default
+          return [34, 197, 94, 200]; // green default
       }
     };
 
-    // Solid fill layer
+    const getBgColor = (category: string): [number, number, number, number] => {
+      switch (category) {
+        case 'nature-wildlife':
+        case 'humanity-kindness':
+          return [34, 197, 94, 210];
+        case 'science-health':
+        case 'innovation-tech':
+        case 'climate-wins':
+          return [180, 140, 8, 210];
+        case 'culture-community':
+          return [120, 70, 220, 210];
+        default:
+          return [34, 197, 94, 210];
+      }
+    };
+
+    // Truncate label: show emoji + name (max 30 chars)
+    const getLabel = (d: PositiveGeoEvent): string => {
+      const emoji = getCategoryEmoji(d.category);
+      const name = d.name.length > 30 ? d.name.slice(0, 28) + '\u2026' : d.name;
+      return `${emoji} ${name}`;
+    };
+
+    // Dot layer
     layers.push(new ScatterplotLayer({
       id: 'positive-events-layer',
       data: this.positiveEvents,
       getPosition: (d: PositiveGeoEvent) => [d.lon, d.lat],
-      getRadius: 15000,
+      getRadius: 12000,
       getFillColor: (d: PositiveGeoEvent) => getCategoryColor(d.category),
-      radiusMinPixels: 4,
-      radiusMaxPixels: maxPx,
+      radiusMinPixels: 5,
+      radiusMaxPixels: 10,
       pickable: true,
     }));
 
-    // Pulse ring layer for significant events (count > 10)
-    const significantEvents = this.positiveEvents.filter(e => e.count > 10);
+    // Text label layer — filter by zoom to avoid clutter
+    const minCount = zoom < 3 ? 5 : zoom < 5 ? 2 : 0;
+    const labeledEvents = this.positiveEvents.filter(e => e.count >= minCount);
+    if (labeledEvents.length > 0) {
+      layers.push(new TextLayer<PositiveGeoEvent>({
+        id: 'positive-events-labels',
+        data: labeledEvents,
+        getPosition: (d: PositiveGeoEvent) => [d.lon, d.lat],
+        getText: getLabel,
+        getSize: zoom < 3 ? 11 : 12,
+        getColor: [255, 255, 255, 255],
+        getPixelOffset: [0, -16],
+        background: true,
+        getBackgroundColor: (d: PositiveGeoEvent) => getBgColor(d.category),
+        backgroundPadding: [6, 3, 6, 3],
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        fontWeight: 600,
+        pickable: false,
+        outlineWidth: 0,
+        billboard: true,
+        sizeUnits: 'pixels' as const,
+      }));
+    }
+
+    // Gentle pulse ring for significant events (count > 8)
+    const significantEvents = this.positiveEvents.filter(e => e.count > 8);
     if (significantEvents.length > 0) {
-      const pulse = 1.0 + 0.6 * (0.5 + 0.5 * Math.sin((this.pulseTime || Date.now()) / 500));
+      const pulse = 1.0 + 0.4 * (0.5 + 0.5 * Math.sin((this.pulseTime || Date.now()) / 800));
       layers.push(new ScatterplotLayer({
         id: 'positive-events-pulse',
         data: significantEvents,
         getPosition: (d: PositiveGeoEvent) => [d.lon, d.lat],
         getRadius: 15000,
         radiusScale: pulse,
-        radiusMinPixels: 6,
-        radiusMaxPixels: 30,
+        radiusMinPixels: 8,
+        radiusMaxPixels: 24,
         stroked: true,
         filled: false,
-        getLineColor: [34, 197, 94, 100] as [number, number, number, number],
+        getLineColor: (d: PositiveGeoEvent) => getCategoryColor(d.category),
         lineWidthMinPixels: 1.5,
         pickable: false,
         updateTriggers: { radiusScale: this.pulseTime },
@@ -2403,42 +2460,60 @@ export class DeckGLMap {
 
   private createKindnessLayers(): Layer[] {
     const layers: Layer[] = [];
+    // Only render real kindness events (baseline was removed)
+    if (this.kindnessPoints.length === 0) return layers;
 
-    // Solid fill layer -- baseline dots are semi-transparent, real events brighter
+    // Dot layer
     layers.push(new ScatterplotLayer<KindnessPoint>({
       id: 'kindness-layer',
       data: this.kindnessPoints,
       getPosition: (d: KindnessPoint) => [d.lon, d.lat],
-      getRadius: (d: KindnessPoint) => 8000 + d.intensity * 12000,
-      getFillColor: (d: KindnessPoint) =>
-        d.type === 'real'
-          ? [74, 222, 128, 200] as [number, number, number, number]
-          : [74, 222, 128, 100] as [number, number, number, number],
-      radiusMinPixels: 3,
+      getRadius: 12000,
+      getFillColor: [74, 222, 128, 200] as [number, number, number, number],
+      radiusMinPixels: 5,
       radiusMaxPixels: 10,
       pickable: true,
     }));
 
-    // Pulse ring layer -- only real events pulse (baseline stays static)
-    const realEvents = this.kindnessPoints.filter(p => p.type === 'real');
-    if (realEvents.length > 0) {
-      const pulse = 1.0 + 0.5 * (0.5 + 0.5 * Math.sin((this.pulseTime || Date.now()) / 600));
-      layers.push(new ScatterplotLayer<KindnessPoint>({
-        id: 'kindness-pulse',
-        data: realEvents,
-        getPosition: (d: KindnessPoint) => [d.lon, d.lat],
-        getRadius: (d: KindnessPoint) => 8000 + d.intensity * 12000,
-        radiusScale: pulse,
-        radiusMinPixels: 4,
-        radiusMaxPixels: 16,
-        stroked: true,
-        filled: false,
-        getLineColor: [74, 222, 128, 80] as [number, number, number, number],
-        lineWidthMinPixels: 1,
-        pickable: false,
-        updateTriggers: { radiusScale: this.pulseTime },
-      }));
-    }
+    // Text labels for real kindness events
+    layers.push(new TextLayer<KindnessPoint>({
+      id: 'kindness-labels',
+      data: this.kindnessPoints,
+      getPosition: (d: KindnessPoint) => [d.lon, d.lat],
+      getText: (d: KindnessPoint) => {
+        const name = d.name.length > 30 ? d.name.slice(0, 28) + '\u2026' : d.name;
+        return `\u{1F49A} ${name}`;
+      },
+      getSize: 11,
+      getColor: [255, 255, 255, 255],
+      getPixelOffset: [0, -16],
+      background: true,
+      getBackgroundColor: [74, 180, 110, 210] as [number, number, number, number],
+      backgroundPadding: [6, 3, 6, 3],
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      fontWeight: 600,
+      pickable: false,
+      billboard: true,
+      sizeUnits: 'pixels' as const,
+    }));
+
+    // Pulse for real events
+    const pulse = 1.0 + 0.4 * (0.5 + 0.5 * Math.sin((this.pulseTime || Date.now()) / 800));
+    layers.push(new ScatterplotLayer<KindnessPoint>({
+      id: 'kindness-pulse',
+      data: this.kindnessPoints,
+      getPosition: (d: KindnessPoint) => [d.lon, d.lat],
+      getRadius: 14000,
+      radiusScale: pulse,
+      radiusMinPixels: 6,
+      radiusMaxPixels: 18,
+      stroked: true,
+      filled: false,
+      getLineColor: [74, 222, 128, 80] as [number, number, number, number],
+      lineWidthMinPixels: 1,
+      pickable: false,
+      updateTriggers: { radiusScale: this.pulseTime },
+    }));
 
     return layers;
   }
@@ -2573,10 +2648,13 @@ export class DeckGLMap {
         return { html: `<div class="deckgl-tooltip"><strong>${t('popups.cyberThreat.title')}</strong><br/>${text(obj.severity || t('components.deckgl.tooltip.medium'))} · ${text(obj.country || t('popups.unknown'))}</div>` };
       case 'news-locations-layer':
         return { html: `<div class="deckgl-tooltip"><strong>📰 ${t('components.deckgl.tooltip.news')}</strong><br/>${text(obj.title?.slice(0, 80) || '')}</div>` };
-      case 'positive-events-layer':
-        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)}</strong><br/>${text(obj.category ? obj.category.replace('-', ' & ') : 'Positive Event')}${obj.count > 1 ? ` &bull; ${obj.count} reports` : ''}</div>` };
+      case 'positive-events-layer': {
+        const catLabel = obj.category ? obj.category.replace(/-/g, ' & ') : 'Positive Event';
+        const countInfo = obj.count > 1 ? `<br/><span style="opacity:.7">${obj.count} sources reporting</span>` : '';
+        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)}</strong><br/><span style="text-transform:capitalize">${text(catLabel)}</span>${countInfo}</div>` };
+      }
       case 'kindness-layer':
-        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)}</strong><br/>${text(obj.description || 'Acts of kindness nearby')}</div>` };
+        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)}</strong></div>` };
       case 'gulf-investments-layer': {
         const inv = obj as GulfInvestment;
         const flag = inv.investingCountry === 'SA' ? '🇸🇦' : '🇦🇪';
