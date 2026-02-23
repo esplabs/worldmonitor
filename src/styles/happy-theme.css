@@ -354,3 +354,124 @@
 [data-variant="happy"] .posture-radar-sweep {
   animation: happy-radar-sweep 3s linear infinite;
 }
+
+/* ==========================================================
+   Happy Positive News Feed — Filter Bar & Cards
+   ========================================================== */
+
+/* ---------- Filter bar ---------- */
+[data-variant="happy"] .positive-feed-filters {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+[data-variant="happy"] .positive-feed-filters::-webkit-scrollbar { display: none; }
+
+[data-variant="happy"] .positive-filter-btn {
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  font-family: var(--font-body);
+}
+[data-variant="happy"] .positive-filter-btn:hover {
+  border-color: var(--yellow);
+  color: var(--text);
+}
+[data-variant="happy"] .positive-filter-btn.active {
+  background: var(--yellow);
+  color: var(--bg);
+  border-color: var(--yellow);
+}
+
+/* ---------- Card styles ---------- */
+[data-variant="happy"] .positive-card {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s;
+}
+[data-variant="happy"] .positive-card:hover {
+  background: var(--bg-secondary);
+}
+[data-variant="happy"] .positive-card-image {
+  flex-shrink: 0;
+  width: 72px;
+  height: 52px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+[data-variant="happy"] .positive-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+[data-variant="happy"] .positive-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+[data-variant="happy"] .positive-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+}
+[data-variant="happy"] .positive-card-source {
+  color: var(--text-dim);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+[data-variant="happy"] .positive-card-category {
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 600;
+  background: var(--green);
+  color: white;
+}
+[data-variant="happy"] .positive-card-category.cat-science-health { background: var(--semantic-info); }
+[data-variant="happy"] .positive-card-category.cat-nature-wildlife { background: var(--green); }
+[data-variant="happy"] .positive-card-category.cat-humanity-kindness { background: var(--red); }
+[data-variant="happy"] .positive-card-category.cat-innovation-tech { background: var(--yellow); color: var(--bg); }
+[data-variant="happy"] .positive-card-category.cat-climate-wins { background: #2d9a4e; }
+[data-variant="happy"] .positive-card-category.cat-culture-community { background: #8b5cf6; }
+
+[data-variant="happy"] .positive-card-title {
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 500;
+  color: var(--text);
+  /* Clamp to 2 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+[data-variant="happy"] .positive-card-time {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+/* ---------- Empty state ---------- */
+[data-variant="happy"] .positive-feed-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+}
