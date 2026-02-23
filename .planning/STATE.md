@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Every piece of content on the dashboard makes the viewer feel genuinely better about humanity
-**Current focus:** Phase 6 in progress - Content Spotlight Panels (2/3 plans done)
+**Current focus:** Phase 6 complete - Content Spotlight Panels (3/3 plans done)
 
 ## Current Position
 
 Phase: 6 of 9 (Content Spotlight Panels)
-Plan: 2 of 3 in current phase (06-02 complete)
-Status: Executing
-Last activity: 2026-02-23 -- Completed 06-02-PLAN.md (Good Things Digest Panel)
+Plan: 3 of 3 in current phase (06-03 complete)
+Status: Phase Complete
+Last activity: 2026-02-23 -- Completed 06-03-PLAN.md (Panel Wiring & CSS)
 
-Progress: [#######---] 74%
+Progress: [########--] 78%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17
+- Total plans completed: 18
 - Average duration: 10 min
-- Total execution time: 3.0 hours
+- Total execution time: 3.1 hours
 
 **By Phase:**
 
@@ -32,11 +32,11 @@ Progress: [#######---] 74%
 | 03 | 3 | 9 min | 3 min |
 | 04 | 3 | 19 min | 6 min |
 | 05 | 3 | 8 min | 2.7 min |
-| 06 | 2 | 4 min | 2 min |
+| 06 | 3 | 8 min | 2.7 min |
 
 **Recent Trend:**
-- Last 5 plans: 2m, 3m, 3m, 2m, 2m
-- Trend: Phase 6 in progress -- 2 of 3 plans done
+- Last 5 plans: 3m, 3m, 2m, 2m, 4m
+- Trend: Phase 6 complete -- all 3 plans done
 
 *Updated after each plan completion*
 | Phase 04 P01 | 4 | 2 tasks | 9 files |
@@ -47,6 +47,7 @@ Progress: [#######---] 74%
 | Phase 05 P03 | 3 | 2 tasks | 2 files |
 | Phase 06 P01 | 2 | 2 tasks | 3 files |
 | Phase 06 P02 | 2 | 1 task | 1 file |
+| Phase 06 P03 | 4 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -108,6 +109,9 @@ Recent decisions affecting current work:
 - [06-01]: onLocationRequest callback pattern allows App.ts to wire map integration without tight coupling.
 - [06-02]: Renamed abortController to summaryAbort in GoodThingsDigestPanel to avoid conflict with Panel base class private field.
 - [06-02]: Pass [title, source] as two headlines to generateSummary() -- satisfies minimum length requirement (headlines.length >= 2) while giving useful context.
+- [06-03]: Used existing CSS vars (--bg-secondary, --surface-hover) instead of plan's hypothetical --bg-elevated/--bg-hover for consistent theme integration.
+- [06-03]: Data distribution to Phase 6 panels placed after try/catch so panels always receive curated data even when GDELT supplementary fails.
+- [06-03]: Science items for breakthroughs ticker filtered by both source name AND happyCategory for comprehensive coverage.
 
 ### Pending Todos
 
@@ -122,5 +126,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 06-02-PLAN.md (Good Things Digest Panel)
-Resume file: .planning/phases/06-content-spotlight-panels/06-02-SUMMARY.md
+Stopped at: Completed 06-03-PLAN.md (Panel Wiring & CSS) -- Phase 6 complete
+Resume file: .planning/phases/06-content-spotlight-panels/06-03-SUMMARY.md
