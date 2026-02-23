@@ -1106,7 +1106,7 @@ export class DeckGLMap {
     }
 
     // APT Groups layer (geopolitical variant only - always shown, no toggle)
-    if (SITE_VARIANT !== 'tech') {
+    if (SITE_VARIANT !== 'tech' && SITE_VARIANT !== 'happy') {
       layers.push(this.createAPTGroupsLayer());
     }
 
