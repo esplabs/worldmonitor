@@ -475,3 +475,152 @@
   color: var(--text-dim);
   font-size: 13px;
 }
+
+/* ==========================================================
+   Happy Counters Panel — Ticking positive metrics grid
+   ========================================================== */
+
+/* ---------- Counters grid layout (responsive 3→2→1) ---------- */
+[data-variant='happy'] .counters-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 12px;
+}
+
+@media (max-width: 900px) {
+  [data-variant='happy'] .counters-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  [data-variant='happy'] .counters-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Counter card ---------- */
+[data-variant='happy'] .counter-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--panel-radius, 14px);
+  padding: 16px;
+  text-align: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-variant='happy'] .counter-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+[data-variant='happy'] .counter-icon {
+  font-size: 1.8rem;
+  margin-bottom: 6px;
+}
+
+[data-variant='happy'] .counter-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  line-height: 1.2;
+  min-height: 1.6em; /* Prevent layout shift */
+}
+
+[data-variant='happy'] .counter-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+[data-variant='happy'] .counter-source {
+  font-size: 0.65rem;
+  color: var(--text-tertiary, var(--text-secondary));
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
+/* ==========================================================
+   Happy Progress Charts Panel — D3 area chart containers
+   ========================================================== */
+
+/* ---------- Progress chart container ---------- */
+[data-variant='happy'] .progress-chart-container {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+[data-variant='happy'] .progress-chart-container:last-child {
+  border-bottom: none;
+}
+
+[data-variant='happy'] .progress-chart-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+[data-variant='happy'] .progress-chart-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+[data-variant='happy'] .progress-chart-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--green);
+  color: white;
+}
+
+[data-variant='happy'] .progress-chart-unit {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-left: 6px;
+}
+
+/* ---------- D3 chart SVG styling ---------- */
+[data-variant='happy'] .progress-chart-container svg {
+  overflow: visible;
+}
+
+[data-variant='happy'] .progress-chart-container .tick text {
+  fill: var(--text-secondary);
+  font-size: 0.65rem;
+}
+
+[data-variant='happy'] .progress-chart-container .tick line,
+[data-variant='happy'] .progress-chart-container .domain {
+  stroke: var(--border);
+}
+
+[data-variant='happy'] .progress-chart-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.7rem;
+  color: var(--text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  white-space: nowrap;
+}
+
+/* ---------- Dark mode adjustments ---------- */
+[data-variant='happy'][data-theme='dark'] .counter-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+[data-variant='happy'][data-theme='dark'] .progress-chart-tooltip {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
